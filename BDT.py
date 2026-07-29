@@ -55,7 +55,7 @@ os.chdir(script_dir)
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 7)
 
-OUTPUT_DIR = "analysis_bdt"        # EDIT: output folder for this run
+OUTPUT_DIR = "bdt_output"        # EDIT: output folder for this run
 HDF5_DIR   = "hdf5_cache_bdt"      # EDIT: HDF5 cache folder (delete to rebuild)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(HDF5_DIR,   exist_ok=True)
@@ -92,7 +92,7 @@ def in_category(scores, lo, hi):
 
 
 SEARCH_BIN_WIDTH = 20
-SEARCH_MASS_MAX  = 3000
+SEARCH_MASS_MAX  = 3500
 MIN_BIN_EVENTS   = 10
 
 print("=" * 80)
@@ -355,7 +355,6 @@ for ax_idx, ax in enumerate(axes):
         ax.set_title('Invariant Mass — Full Range (Linear Scale)',
                      fontsize=13, fontweight='bold')
 
-# Annotate boundary lines after axes are drawn
 for ax in axes:
     y_top = ax.get_ylim()[1]
     for bval, bcol, blabel in boundaries:
@@ -884,5 +883,4 @@ print("  📄 zprime_candidates.csv")
 print("  📄 search_region_scores.csv")
 print("  📄 analysis_summary.txt")
 print("  🤖 zprime_bdt_model.json")
-print("\nNOTE: Delete hdf5_cache_proper/ to rebuild with different settings.")
 print("=" * 80)
