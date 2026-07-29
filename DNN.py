@@ -1,31 +1,9 @@
 """
-Z' Boson Search — Deep Neural Network Pipeline
+Deep Neural Network Pipeline
 ================================================
-Drop-in replacement for the BDT pipeline. Same data files, same 11 features,
-same mass regions, same HDF5 cache format, same output structure.
 
 Architecture:
   Simple fully-connected MLP on the 11 flat kinematic features.
-  No graph structure, no relational inductive bias — the network must
-  discover any feature interactions through gradient descent alone.
-
-  This is deliberately moderate in capacity (3 hidden layers of 128 units)
-  to avoid the mass-reconstruction problem observed with the GNN. The MLP
-  is more expressive than the BDT but lacks the pairwise (ΔR, pT ratio)
-  structure that allowed the GNN to trivially reconstruct invariant mass.
-
-Key design choices:
-  1. Feature standardisation (zero-mean, unit-variance on training data)
-  2. BCEWithLogitsLoss with pos_weight (matches BDT scale_pos_weight)
-  3. Moderate capacity: 3 layers × 128 units, dropout 0.3
-  4. Cosine annealing LR with early stopping on validation AUC
-  5. No graph construction — flat 11-feature input only
-
-Features (11 — identical to BDT, no engineered quantities):
-  pt1, eta1, phi1, pt2, eta2, phi2,
-  n_jets, leading_jet_pt, leading_jet_eta, leading_jet_phi, met
-
-DELETE hdf5_cache_dnn/ before running if you change mass regions or features.
 
 Requirements:
   pip install torch h5py scikit-learn matplotlib seaborn scipy pandas numpy
@@ -73,7 +51,7 @@ os.chdir(script_dir)
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 7)
 
-OUTPUT_DIR = "analysis_dnn"        # EDIT: output folder for this run
+OUTPUT_DIR = "dnn_output"        # EDIT: output folder for this run
 HDF5_DIR   = "hdf5_cache_dnn"      # EDIT: HDF5 cache folder (delete to rebuild)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(HDF5_DIR,   exist_ok=True)
@@ -101,9 +79,6 @@ SCORE_CATEGORIES = [
 FIT_CATEGORIES = ['very_high']
 
 def in_category(scores, lo, hi):
-    # Half-open [lo, hi) for every category EXCEPT the top one (hi >= 1.0), which
-    # closes on hi so sigmoid scores that saturate to exactly 1.0 in float32 are
-    # kept in the fitted category instead of being silently dropped.
     top = scores <= hi if hi >= 1.0 else scores < hi
     return (scores >= lo) & top
 
@@ -320,7 +295,7 @@ def h5_len(path, ds='X'):
         return f[ds].shape[0]
 
 
-# STEP 1: BUILD HDF5 CACHE — identical to BDT pipeline
+# STEP 1: BUILD HDF5 CACHE
 
 print("\nSTEP 1: Building HDF5 cache...")
 init_h5_labeled(BG_H5,  label=0)
@@ -1023,5 +998,4 @@ print("  📄 search_region_scores.csv")
 print("  📄 analysis_summary.txt")
 print("  📄 feature_standardiser.npz")
 print("  🤖 zprime_dnn_model.pt")
-print("\nDELETE hdf5_cache_dnn/ to rebuild with different settings.")
 print("=" * 80)
