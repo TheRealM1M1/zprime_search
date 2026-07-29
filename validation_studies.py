@@ -1,14 +1,10 @@
 """
-Post-hoc validation studies for the Z' search — runs on saved scores only.
+Post-hoc validation studies for the search. Runs on saved scores only.
 
 Reads search_region_scores.csv (written by DNN.py and BDT.py) and produces:
   PART A — quantitative score-vs-mass correlation + profile plots
   PART B — toy signal-injection study
 
-
-Usage:
-    python validation_studies.py                # DNN
-    python validation_studies.py --score-col bdt_score --label BDT
 """
 
 # USAGE:
@@ -58,13 +54,6 @@ args = parser.parse_args()
 
 
 def in_category(scores, lo, hi):
-    """Category membership mask.
-
-    Half-open [lo, hi) for every category except the top one (hi >= 1.0),
-    which closes on hi (scores <= hi). This keeps float32-saturated sigmoid
-    scores of exactly 1.0 inside the very-high category instead of silently
-    dropping them. See the module docstring for why this matters.
-    """
     top = scores <= hi if hi >= 1.0 else scores < hi
     return (scores >= lo) & top
 
@@ -76,13 +65,14 @@ def locate_csv(explicit=None, filename='search_region_scores.csv'):
             return os.path.abspath(explicit)
         raise FileNotFoundError(f"--csv path does not exist: {explicit}")
 
+  """If performing validation study for BDT, replace 'dnn' accordingly""" 
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         filename,
-        os.path.join('analysis_dnn', filename),
+        os.path.join('dnn_output', filename),
         os.path.join(here, filename),
-        os.path.join(here, 'analysis_dnn', filename),
-        os.path.join(here, '..', 'analysis_dnn', filename),
+        os.path.join(here, 'dnn_output', filename),
+        os.path.join(here, '..', 'dnn_output', filename),
         os.path.join(here, '..', filename),
     ]
     for c in candidates:
@@ -110,19 +100,12 @@ df    = pd.read_csv(csv_path)
 mass  = df['invariant_mass'].to_numpy()
 score = df[args.score_col].to_numpy()
 
-# Diagnostic: how many events saturate to exactly 1.0? These are precisely the
-n_saturated = int(np.sum(score >= 1.0))
-print(f"Loaded {len(score):,} search-region events; "
-      f"{n_saturated:,} have score == 1.0 "
-      f"({100 * n_saturated / max(len(score), 1):.1f}%) "
-      f"and are retained by the closed top edge.")
-
 bins    = np.arange(SEARCH_MIN, SEARCH_MASS_MAX + SEARCH_BIN_WIDTH, SEARCH_BIN_WIDTH)
 centers = (bins[:-1] + bins[1:]) / 2
 
 
 def bg_model(m, p0, p1, p2):
-    """Same three-parameter background as DNN.py."""
+    """Same three-parameter background from either classifier workflow."""
     x = np.clip(m / SQRT_S, 1e-10, 1 - 1e-10)
     return p0 * ((1 - x) ** p1) * (m ** (-p2))
 
@@ -195,7 +178,6 @@ else:
         ks, p_ks = ks_2samp(m_cat, mass_ref)
         print(f"  {name:10s} (n={len(m_cat):7,})  KS = {ks:.4f}   p = {p_ks:.3g}")
 
-# --- Profile + category-fraction plots (2 panels; the 2D hist saturates
 prof_bins = np.linspace(SEARCH_MIN, 1500, 26)
 idx       = np.digitize(mass, prof_bins) - 1
 
@@ -237,12 +219,11 @@ plt.close()
 print(f"\n✓ Saved score_mass_correlation_{args.label.lower()}.png")
 
 
-# PART B — TOY SIGNAL INJECTION (Asimov baseline, many toys per point)
+# PART B — TOY SIGNAL INJECTION
 print("\n" + "=" * 68)
 print(f"PART B: Toy signal injection ({args.label})")
 print("=" * 68)
 
-# saturated 1.0 events are included (consistent with in_category's top edge).
 n_obs, _ = np.histogram(mass[vh], bins=bins)
 popt0, chi2_0, _ = fit_background(n_obs)
 if popt0 is None:
